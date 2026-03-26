@@ -21,11 +21,8 @@ class API {
                 if (data.api) return data.api;
             } catch (e) {}
         }
-        // Fallback: assume API on same domain or localhost
-        if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
-            return 'http://localhost:8000';
-        }
-        return location.origin;
+        // Cloudflare Tunnel URL
+        return 'https://refused-renewable-detected-bicycle.trycloudflare.com';
     }
 
     setAuth(token, tenantSlug) {
