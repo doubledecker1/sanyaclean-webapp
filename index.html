@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Operator Panel</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Navigation -->
+        <nav id="nav">
+            <button class="nav-btn active" data-tab="dialogs">
+                <span class="nav-icon">💬</span>
+                <span class="nav-label">Диалоги</span>
+                <span class="badge" id="badge-dialogs" style="display:none">0</span>
+            </button>
+            <button class="nav-btn" data-tab="chat">
+                <span class="nav-icon">✍️</span>
+                <span class="nav-label">Чат</span>
+            </button>
+            <button class="nav-btn" data-tab="stats">
+                <span class="nav-icon">📊</span>
+                <span class="nav-label">Стата</span>
+            </button>
+            <button class="nav-btn" data-tab="settings">
+                <span class="nav-icon">⚙️</span>
+                <span class="nav-label">Настройки</span>
+            </button>
+        </nav>
+
+        <!-- Dialogs Tab -->
+        <section id="tab-dialogs" class="tab active">
+            <div class="tab-header">
+                <h2>Диалоги</h2>
+                <div class="filters">
+                    <button class="filter-btn active" data-filter="active">Активные</button>
+                    <button class="filter-btn" data-filter="escalated">Эскалация</button>
+                    <button class="filter-btn" data-filter="closed">Закрытые</button>
+                </div>
+            </div>
+            <div id="dialogs-list" class="list">
+                <div class="empty-state">Загрузка...</div>
+            </div>
+        </section>
+
+        <!-- Chat Tab -->
+        <section id="tab-chat" class="tab">
+            <div id="chat-header" class="chat-header">
+                <button id="chat-back" class="back-btn">←</button>
+                <div class="chat-info">
+                    <span id="chat-name">Выберите диалог</span>
+                    <span id="chat-status" class="status-badge"></span>
+                </div>
+                <div class="chat-actions">
+                    <button id="btn-takeover" class="action-btn" title="Перехватить">🤚</button>
+                    <button id="btn-release" class="action-btn" title="Вернуть AI" style="display:none">🤖</button>
+                    <button id="btn-close" class="action-btn" title="Закрыть">✖</button>
+                </div>
+            </div>
+            <div id="chat-messages" class="messages">
+                <div class="empty-state">Выберите диалог из списка</div>
+            </div>
+            <div id="chat-input-area" class="input-area" style="display:none">
+                <textarea id="chat-input" placeholder="Написать клиенту..." rows="1"></textarea>
+                <button id="btn-send" class="send-btn">➤</button>
+            </div>
+        </section>
+
+        <!-- Stats Tab -->
+        <section id="tab-stats" class="tab">
+            <div class="tab-header">
+                <h2>Статистика</h2>
+                <select id="stats-period">
+                    <option value="today">Сегодня</option>
+                    <option value="week" selected>Неделя</option>
+                    <option value="month">Месяц</option>
+                </select>
+            </div>
+            <div id="stats-cards" class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-total">—</div>
+                    <div class="stat-label">Всего диалогов</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-active">—</div>
+                    <div class="stat-label">Активных</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-escalated">—</div>
+                    <div class="stat-label">Эскалаций</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-messages">—</div>
+                    <div class="stat-label">Сообщений</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-avg-response">—</div>
+                    <div class="stat-label">Ср. ответ AI</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-ai-rate">—</div>
+                    <div class="stat-label">AI без оператора</div>
+                </div>
+            </div>
+            <div class="chart-container">
+                <h3>Сообщения по дням</h3>
+                <canvas id="chart-messages"></canvas>
+            </div>
+        </section>
+
+        <!-- Settings Tab -->
+        <section id="tab-settings" class="tab">
+            <div class="tab-header">
+                <h2>Настройки</h2>
+            </div>
+            <div class="settings-list">
+                <div class="setting-group">
+                    <h3>AI Ассистент</h3>
+                    <div class="setting-item">
+                        <label>Системный промпт</label>
+                        <textarea id="set-system-prompt" rows="4"></textarea>
+                    </div>
+                    <div class="setting-item">
+                        <label>Приветствие</label>
+                        <input type="text" id="set-welcome" />
+                    </div>
+                    <div class="setting-item">
+                        <label>Модель AI</label>
+                        <select id="set-model">
+                            <option value="claude-sonnet-4-20250514">Claude Sonnet 4</option>
+                            <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5</option>
+                        </select>
+                    </div>
+                    <div class="setting-item">
+                        <label>Макс. токенов</label>
+                        <input type="number" id="set-max-tokens" min="100" max="4096" />
+                    </div>
+                </div>
+                <div class="setting-group">
+                    <h3>База знаний</h3>
+                    <div id="kb-sections" class="kb-list"></div>
+                    <button id="btn-reload-kb" class="btn-secondary">Перезагрузить базу знаний</button>
+                </div>
+                <button id="btn-save-settings" class="btn-primary">Сохранить</button>
+            </div>
+        </section>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
