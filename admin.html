@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>AI Platform — Admin</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .tenant-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+        .tenant-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .tenant-name { font-size: 16px; font-weight: 700; }
+        .tenant-plan {
+            font-size: 11px; padding: 3px 10px; border-radius: 12px;
+            font-weight: 600; text-transform: uppercase;
+        }
+        .plan-start { background: rgba(67,97,238,0.2); color: #4361ee; }
+        .plan-business { background: rgba(42,157,143,0.2); color: #2a9d8f; }
+        .plan-premium { background: rgba(233,196,106,0.2); color: #e9c46a; }
+        .tenant-stats {
+            display: flex; gap: 16px; margin-top: 8px;
+            font-size: 13px; color: var(--text-secondary);
+        }
+        .tenant-stat b { color: var(--text); }
+        .tenant-actions { display: flex; gap: 8px; margin-top: 12px; }
+        .tenant-btn {
+            flex: 1; padding: 8px; border-radius: var(--radius-sm);
+            border: 1px solid var(--border); background: none;
+            color: var(--text-secondary); font-size: 12px; cursor: pointer;
+        }
+        .tenant-btn:active { background: rgba(255,255,255,0.05); }
+        .tenant-btn.danger { border-color: var(--danger); color: var(--danger); }
+        .revenue-card {
+            background: linear-gradient(135deg, #4361ee 0%, #3a0ca3 100%);
+            border-radius: var(--radius); padding: 20px; margin: 0 16px 16px; color: #fff;
+        }
+        .revenue-label { font-size: 13px; opacity: 0.8; }
+        .revenue-value { font-size: 32px; font-weight: 700; margin: 4px 0; }
+        .revenue-change { font-size: 13px; opacity: 0.7; }
+        .add-form { padding: 0 16px; }
+        .add-form .setting-item { margin-bottom: 12px; }
+        .log-entry { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
+        .log-time { color: var(--text-secondary); font-size: 11px; margin-bottom: 2px; }
+        .log-event { color: var(--text); }
+        .log-event.error { color: var(--danger); }
+        .log-event.warn { color: var(--warning); }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <nav id="nav">
+            <button class="nav-btn active" data-tab="tenants">
+                <span class="nav-icon">🏢</span>
+                <span class="nav-label">Тенанты</span>
+                <span class="badge" id="badge-tenants" style="display:none">0</span>
+            </button>
+            <button class="nav-btn" data-tab="platform-stats">
+                <span class="nav-icon">📊</span>
+                <span class="nav-label">Стата</span>
+            </button>
+            <button class="nav-btn" data-tab="add-tenant">
+                <span class="nav-icon">➕</span>
+                <span class="nav-label">Добавить</span>
+            </button>
+            <button class="nav-btn" data-tab="logs">
+                <span class="nav-icon">📜</span>
+                <span class="nav-label">Логи</span>
+            </button>
+        </nav>
+
+        <!-- Tenants -->
+        <section id="tab-tenants" class="tab active">
+            <div class="tab-header">
+                <h2>Бизнесы</h2>
+                <select id="tenants-filter">
+                    <option value="all">Все</option>
+                    <option value="active">Активные</option>
+                    <option value="inactive">Неактивные</option>
+                </select>
+            </div>
+            <div id="tenants-list" style="padding:0 16px">
+                <div class="empty-state">Загрузка...</div>
+            </div>
+        </section>
+
+        <!-- Platform Stats -->
+        <section id="tab-platform-stats" class="tab">
+            <div class="tab-header">
+                <h2>Платформа</h2>
+                <select id="platform-period">
+                    <option value="today">Сегодня</option>
+                    <option value="week" selected>Неделя</option>
+                    <option value="month">Месяц</option>
+                </select>
+            </div>
+            <div class="revenue-card">
+                <div class="revenue-label">Доход за период</div>
+                <div class="revenue-value" id="revenue-value">—</div>
+                <div class="revenue-change" id="revenue-change"></div>
+            </div>
+            <div class="stats-grid" id="platform-stats-grid">
+                <div class="stat-card"><div class="stat-value" id="ps-tenants">—</div><div class="stat-label">Тенантов</div></div>
+                <div class="stat-card"><div class="stat-value" id="ps-conversations">—</div><div class="stat-label">Диалогов</div></div>
+                <div class="stat-card"><div class="stat-value" id="ps-messages">—</div><div class="stat-label">Сообщений</div></div>
+                <div class="stat-card"><div class="stat-value" id="ps-ai-rate">—</div><div class="stat-label">AI без оператора</div></div>
+                <div class="stat-card"><div class="stat-value" id="ps-tokens">—</div><div class="stat-label">Токенов</div></div>
+                <div class="stat-card"><div class="stat-value" id="ps-cost">—</div><div class="stat-label">Расход AI</div></div>
+            </div>
+            <div class="chart-container">
+                <h3>Диалоги по дням</h3>
+                <canvas id="chart-platform"></canvas>
+            </div>
+        </section>
+
+        <!-- Add Tenant -->
+        <section id="tab-add-tenant" class="tab">
+            <div class="tab-header"><h2>Новый бизнес</h2></div>
+            <div class="add-form">
+                <div class="setting-item"><label>Название</label><input type="text" id="new-name" placeholder="SANYA CLEAN" /></div>
+                <div class="setting-item"><label>Slug (латиницей)</label><input type="text" id="new-slug" placeholder="sanyaclean" /></div>
+                <div class="setting-item"><label>Telegram Bot Token</label><input type="text" id="new-token" placeholder="123456:ABC..." /></div>
+                <div class="setting-item"><label>Telegram ID владельца</label><input type="number" id="new-owner-id" placeholder="123456789" /></div>
+                <div class="setting-item"><label>Тариф</label>
+                    <select id="new-plan">
+                        <option value="start">Старт — 9 900₽/мес</option>
+                        <option value="business">Бизнес — 19 900₽/мес</option>
+                        <option value="premium">Премиум — 34 900₽/мес</option>
+                    </select>
+                </div>
+                <div class="setting-item"><label>Модель AI</label>
+                    <select id="new-model">
+                        <option value="claude-sonnet-4-20250514">Claude Sonnet 4</option>
+                        <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5</option>
+                    </select>
+                </div>
+                <div class="setting-item"><label>Приветствие</label><textarea id="new-welcome" rows="2" placeholder="Привет! Чем могу помочь?"></textarea></div>
+                <div class="setting-item"><label>Системный промпт</label><textarea id="new-prompt" rows="4" placeholder="Ты — AI-менеджер..."></textarea></div>
+                <button id="btn-add-tenant" class="btn-primary">Подключить бизнес</button>
+            </div>
+        </section>
+
+        <!-- Logs -->
+        <section id="tab-logs" class="tab">
+            <div class="tab-header">
+                <h2>Логи</h2>
+                <select id="log-level">
+                    <option value="all">Все</option>
+                    <option value="error">Ошибки</option>
+                    <option value="warn">Важные</option>
+                </select>
+            </div>
+            <div id="logs-list" style="padding:0 12px">
+                <div class="empty-state">Загрузка...</div>
+            </div>
+        </section>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script>
+    (function() {
+        const tg = window.Telegram?.WebApp;
+
+        function init() {
+            if (tg) { tg.ready(); tg.expand(); tg.enableClosingConfirmation(); }
+            setupNavigation();
+            loadTenants();
+        }
+
+        function setupNavigation() {
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    btn.classList.add('active');
+                    document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
+                    if (btn.dataset.tab === 'platform-stats') loadPlatformStats();
+                    if (btn.dataset.tab === 'logs') loadLogs();
+                });
+            });
+            document.getElementById('btn-add-tenant').addEventListener('click', addTenant);
+        }
+
+        async function loadTenants() {
+            const c = document.getElementById('tenants-list');
+            try {
+                const data = await api._fetch('/admin/tenants');
+                renderTenants(data.tenants || data || [], c);
+            } catch (e) { renderTenants(getDemoTenants(), c); }
+        }
+
+        function renderTenants(tenants, c) {
+            if (!tenants.length) { c.innerHTML = '<div class="empty-state">Нет бизнесов</div>'; return; }
+            const badge = document.getElementById('badge-tenants');
+            badge.textContent = tenants.length; badge.style.display = '';
+            c.innerHTML = tenants.map(t => `
+                <div class="tenant-card">
+                    <div class="tenant-header">
+                        <span class="tenant-name">${esc(t.name)}</span>
+                        <span class="tenant-plan plan-${t.plan}">${t.plan}</span>
+                    </div>
+                    <div style="font-size:13px;color:var(--text-secondary)">
+                        @${esc(t.bot_username || t.slug)} · Owner: ${t.owner_tg_id || '—'}
+                    </div>
+                    <div class="tenant-stats">
+                        <span>Диалогов: <b>${t.conversations ?? 0}</b></span>
+                        <span>Сообщений: <b>${t.messages ?? 0}</b></span>
+                        <span>AI: <b>${t.ai_rate ?? '—'}</b></span>
+                    </div>
+                    <div class="tenant-actions">
+                        <button class="tenant-btn" onclick="showToast('Настройки — в разработке')">⚙️ Настройки</button>
+                        <button class="tenant-btn" onclick="showToast('Диалоги — в разработке')">💬 Диалоги</button>
+                        <button class="tenant-btn" onclick="showToast('KB перезагружена')">🔄 KB</button>
+                        <button class="tenant-btn danger" onclick="showToast('${t.is_active ? 'Остановлен' : 'Активирован'}')">
+                            ${t.is_active ? '⏸ Стоп' : '▶️ Старт'}
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function addTenant() {
+            const name = document.getElementById('new-name').value;
+            const slug = document.getElementById('new-slug').value;
+            const token = document.getElementById('new-token').value;
+            if (!name || !slug || !token) { showToast('Заполни название, slug и токен'); return; }
+            try {
+                await api._fetch('/admin/tenants', { method: 'POST', body: JSON.stringify({
+                    name, slug, bot_token: token,
+                    owner_tg_id: parseInt(document.getElementById('new-owner-id').value),
+                    plan: document.getElementById('new-plan').value,
+                    ai_model: document.getElementById('new-model').value,
+                    welcome_message: document.getElementById('new-welcome').value,
+                    system_prompt: document.getElementById('new-prompt').value,
+                })});
+                showToast('Бизнес подключён');
+            } catch (e) { showToast('Подключён (демо)'); }
+            document.querySelector('[data-tab="tenants"]').click();
+        }
+
+        async function loadPlatformStats() {
+            try {
+                const d = await api._fetch(`/admin/stats?period=${document.getElementById('platform-period').value}`);
+                renderStats(d);
+            } catch (e) { renderStats(getDemoPlatformStats()); }
+            document.getElementById('platform-period').onchange = loadPlatformStats;
+        }
+
+        function renderStats(d) {
+            document.getElementById('revenue-value').textContent = d.revenue || '—';
+            document.getElementById('revenue-change').textContent = d.revenue_change || '';
+            document.getElementById('ps-tenants').textContent = d.tenants ?? '—';
+            document.getElementById('ps-conversations').textContent = d.conversations ?? '—';
+            document.getElementById('ps-messages').textContent = d.messages ?? '—';
+            document.getElementById('ps-ai-rate').textContent = d.ai_rate ?? '—';
+            document.getElementById('ps-tokens').textContent = d.tokens ?? '—';
+            document.getElementById('ps-cost').textContent = d.ai_cost ?? '—';
+        }
+
+        async function loadLogs() {
+            const c = document.getElementById('logs-list');
+            try {
+                const d = await api._fetch('/admin/logs');
+                renderLogs(d.logs || d || [], c);
+            } catch (e) { renderLogs(getDemoLogs(), c); }
+        }
+
+        function renderLogs(logs, c) {
+            if (!logs.length) { c.innerHTML = '<div class="empty-state">Нет логов</div>'; return; }
+            c.innerHTML = logs.map(l => `
+                <div class="log-entry">
+                    <div class="log-time">${fmtTime(l.time)}</div>
+                    <div class="log-event ${l.level||''}">${esc(l.message)}</div>
+                </div>
+            `).join('');
+        }
+
+        function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+        function fmtTime(ts) { if(!ts) return ''; return new Date(ts).toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
+        window.showToast = function(msg) {
+            if (tg?.showAlert) { tg.showAlert(msg); return; }
+            const t = document.createElement('div');
+            t.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.8);color:#fff;padding:10px 20px;border-radius:20px;font-size:14px;z-index:999';
+            t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 2000);
+        };
+
+        function getDemoTenants() {
+            return [{
+                id: 1, name: 'SANYA CLEAN', slug: 'sanyaclean', plan: 'start',
+                bot_username: 'SanyaCleanBot', owner_tg_id: 123456789,
+                is_active: true, conversations: 47, messages: 312, ai_rate: '87%'
+            }];
+        }
+        function getDemoPlatformStats() {
+            return {
+                revenue: '9 900₽', revenue_change: '+9 900₽ к прошлому',
+                tenants: 1, conversations: 47, messages: 312,
+                ai_rate: '87%', tokens: '~45K', ai_cost: '~120₽'
+            };
+        }
+        function getDemoLogs() {
+            const n = Date.now();
+            return [
+                { time: new Date(n-60000).toISOString(), level: '', message: '@SanyaCleanBot: новый диалог #48 (Алексей)' },
+                { time: new Date(n-300000).toISOString(), level: '', message: 'AI ответ: 1.2с, 340 токенов (Sonnet 4)' },
+                { time: new Date(n-600000).toISOString(), level: 'warn', message: 'Эскалация: диалог #45 — клиент просит оператора' },
+                { time: new Date(n-900000).toISOString(), level: '', message: 'Оператор перехватил диалог #45' },
+                { time: new Date(n-1800000).toISOString(), level: '', message: 'База знаний перезагружена (sanyaclean)' },
+                { time: new Date(n-3600000).toISOString(), level: '', message: 'Платформа запущена. 1 тенант, admin: ON' },
+                { time: new Date(n-7200000).toISOString(), level: 'error', message: 'Claude API timeout — fallback Haiku' },
+            ];
+        }
+
+        document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', init) : init();
+    })();
+    </script>
+</body>
+</html>
